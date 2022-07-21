@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { getPluginManager } from '@@/core/plugin';
-import ReactDOM from 'react-dom';
+import ReactDOM, { Root } from 'react-dom';
 import { ApplyPluginsType } from 'umi';
 import { setModelState } from './qiankunModel';
 
@@ -10,7 +10,7 @@ type Defer = {
   promise: Promise<any>;
   resolve(value?: any): void;
 };
-
+let reactRoot: Root = null;
 // @ts-ignore
 const defer: Defer = {};
 defer.promise = new Promise((resolve) => {
@@ -20,7 +20,10 @@ defer.promise = new Promise((resolve) => {
 let render = noop;
 let hasMountedAtLeastOnce = false;
 
-export default () => defer.promise;
+function renderCallback(root: Root) {
+  reactRoot = root;
+}
+export default () => [defer.promise, renderCallback];
 export const contextOptsStack: any[] = [];
 
 // function normalizeHistory(
@@ -120,7 +123,7 @@ export function genMount(mountElementId: string) {
 
     // 第一次 mount defer 被 resolve 后umi 会自动触发 render，非第一次 mount 则需手动触发
     if (hasMountedAtLeastOnce) {
-      render();
+      reactRoot = await render();
     } else {
       defer.resolve();
     }
@@ -153,7 +156,9 @@ export function genUnmount(mountElementId: string) {
       ? props.container.querySelector(`#${mountElementId}`)
       : document.getElementById(mountElementId);
     if (container) {
-      ReactDOM.unmountComponentAtNode(container);
+      reactRoot
+        ? reactRoot.unmount()
+        : ReactDOM.unmountComponentAtNode(container);
     }
     const slaveRuntime = await getSlaveRuntime();
     if (slaveRuntime.unmount) await slaveRuntime.unmount(props);

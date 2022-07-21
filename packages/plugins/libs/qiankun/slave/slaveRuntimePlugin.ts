@@ -2,7 +2,12 @@
 import qiankunRender, { contextOptsStack } from './lifecycles';
 
 export function render(oldRender: any) {
-  return qiankunRender().then(oldRender);
+  const [renderPromise, callback] = qiankunRender();
+  return renderPromise.then(async () => {
+    const root = await oldRender();
+    callback(root);
+    return root;
+  });
 }
 
 export function modifyContextOpts(memo: any) {
